@@ -9,7 +9,7 @@ ALPHA_VANTAGE_URL = "https://www.alphavantage.co/query"
 
 def fetch_monthly_data(symbol: str):
     # get API key from .env file
-    api_key = os.getenv("ALPHA_VANTAGE_KEY")
+    api_key = os.getenv("ALPHAVANTAGE_API_KEY")
 
     # if API key missing raise Value error
     if not api_key:
