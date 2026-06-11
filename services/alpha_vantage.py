@@ -23,7 +23,10 @@ def fetch_monthly_data(symbol: str):
     }
 
     # Call API
-    response = requests.get(ALPHA_VANTAGE_URL, params=params)
+    try:
+        response = requests.get(ALPHA_VANTAGE_URL, params=params, timeout=10)
+    except requests.exceptions.Timeout:
+        raise ConnectionError("Alpha Vantage API request timed out")
     if response.status_code != 200:
         raise ConnectionError(f"Failed to reach Alpha Vantage: {response.status_code}")
 
@@ -31,6 +34,13 @@ def fetch_monthly_data(symbol: str):
     data = response.json()
 
     #if simbol is not valid
+
+    if "Note" in data:
+        raise ConnectionError("Alpha Vantage API rate limit reached. Try again later")
+
+    if "Information" in data:
+        raise ConnectionError("Invalid API key")
+
     if "Monthly Time Series" not in data:
         raise ValueError(f"No data found from symbol: {symbol}")
 
