@@ -4,3 +4,4 @@ venv/
 __pycache__/
 market_data.db
 *.pyc
+.idea/
