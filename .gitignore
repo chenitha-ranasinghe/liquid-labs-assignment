@@ -1,6 +1,6 @@
-Add-Content .gitignore ".env"
-Add-Content .gitignore ".venv/"
-Add-Content .gitignore "venv/"
-Add-Content .gitignore "__pycache__/"
-Add-Content .gitignore "market_data.db"
-Add-Content .gitignore "*.pyc"
+.env
+.venv/
+venv/
+__pycache__/
+market_data.db
+*.pyc
