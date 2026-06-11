@@ -10,27 +10,27 @@ def data_exists_for_year(symbol: str, year: str) -> bool:
     connection = database.get_connection()
 
     # count rows for this symbol and year
-    symbol_and_year = connection.execute(
-        "SELECT COUNT(*) as count FROM monthly_data WHERE symbol = ? AND strftime('%Y', date) = ?",
-        (symbol, year)
-    )
-    row = symbol_and_year.fetchone()
-    connection.close()
-
-    # if count > 0 means data exists
-    return row["count"] > 0
+    try:
+        symbol_and_year = connection.execute(
+            "SELECT COUNT(*) as count FROM monthly_data WHERE symbol = ? AND strftime('%Y', date) = ?",
+            (symbol, year)
+        )
+        row = symbol_and_year.fetchone()
+        # if count > 0 means data exists
+        return row["count"] > 0
+    finally:
+        connection.close()
 
 # insert data for DB from Alpha Vantage
 def insert_monthly_data(symbol: str, monthly_series: dict):
     # connect to the database
     connection = database.get_connection()
 
-    # looping all months
-    for date, values in monthly_series.items():
-
-        # only insert high, low and volume data to the database
-        try:
-            connection.execute(
+    # only insert high, low and volume data to the database
+    try:
+        # looping all months
+        for date, values in monthly_series.items():
+             connection.execute(
                 "INSERT OR IGNORE INTO monthly_data (symbol, date, high, low, volume) VALUES(?, ?, ?, ?, ?)",
                 (
                     symbol,
@@ -40,34 +40,38 @@ def insert_monthly_data(symbol: str, monthly_series: dict):
                     int(values["5. volume"])
                 )
             )
+        connection.commit()
+    except Exception as e:
+        connection.rollback()
+        raise e
 
-        except Exception as e:
-            print(f"Skipping row {date}: {e}")
-
-    connection.commit()
-    connection.close()
+    finally:
+        connection.close()
 
 def get_annual_stats(symbol: str, year: str):
     connection = database.get_connection()
 
     # get high, low, volume statistis for the year
-    get_high_low_volume = connection.execute(
+    try:
+        get_high_low_volume = connection.execute(
 
-        """
-            SELECT
-                MAX(high) AS high,
-                MIN(low) AS low,
-                SUM(volume) AS volume
+            """
+                SELECT
+                    MAX(high) AS high,
+                    MIN(low) AS low,
+                    SUM(volume) AS volume
                 
-            FROM monthly_data
-            Where symbol = ?
-            AND strftime('%Y', date) = ?
-        """,
-        (symbol, year)
+                FROM monthly_data
+                Where symbol = ?
+                AND strftime('%Y', date) = ?
+            """,
+            (symbol, year)
 
-    )
-    row = get_high_low_volume.fetchone()
-    connection.close()
+        )
+        row = get_high_low_volume.fetchone()
+
+    finally:
+        connection.close()
 
     # if data is Not Found
     if row["high"] is None:
@@ -76,8 +80,8 @@ def get_annual_stats(symbol: str, year: str):
     # return as strings like assignment expects
 
     return{
-        "high" : str(row["high"]),
-        "low" : str(row["low"]),
+        "high" : f"{row['high']:.4f}",
+        "low" : f"{row['low']:.4f}",
         "volume" : str(int(row["volume"]))
     }
 
@@ -85,9 +89,13 @@ def get_annual_stats(symbol: str, year: str):
 def get_annual(symbol: str, year: str):
     symbol = symbol.upper()
 
-    # check the year format
+    # validate the year format
     if not year.isdigit() or len(year) != 4:
         raise HTTPException(status_code = 400, detail = f"year must be in YYYY format")
+
+    # validate symbol
+    if not symbol.isalpha():
+        raise HTTPException(status_code=400, detail="Symbol must contain letters only")
 
     # check the database before save data to database
     if not data_exists_for_year(symbol, year):
